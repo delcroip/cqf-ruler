@@ -3,6 +3,7 @@ package org.opencds.cqf.ruler.cr;
 import org.opencds.cqf.cql.engine.fhir.searchparam.SearchParameterResolver;
 import org.opencds.cqf.cql.evaluator.measure.MeasureEvaluationOptions;
 import org.opencds.cqf.ruler.cql.CqlConfig;
+import org.opencds.cqf.ruler.cr.r4.provider.PlanApplyOperation;
 import org.opencds.cqf.ruler.external.annotations.OnDSTU3Condition;
 import org.opencds.cqf.ruler.external.annotations.OnR4Condition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -62,10 +63,15 @@ public class CrConfig {
 		return new org.opencds.cqf.ruler.cr.dstu3.provider.PlanDefinitionApplyProvider();
 	}
 
+//	@Bean
+//	@Conditional(OnR4Condition.class)
+//	public org.opencds.cqf.ruler.cr.r4.provider.PlanDefinitionApplyProvider r4PlanDefinitionApplyProvider() {
+//		return new org.opencds.cqf.ruler.cr.r4.provider.PlanDefinitionApplyProvider();
+//	}
 	@Bean
 	@Conditional(OnR4Condition.class)
-	public org.opencds.cqf.ruler.cr.r4.provider.PlanDefinitionApplyProvider r4PlanDefinitionApplyProvider() {
-		return new org.opencds.cqf.ruler.cr.r4.provider.PlanDefinitionApplyProvider();
+	public PlanApplyOperation r4PlanApplyOperation() {
+		return new PlanApplyOperation();
 	}
 
 	@Bean
