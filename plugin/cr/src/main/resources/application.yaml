@@ -6,3 +6,9 @@ hapi:
             care_gaps_reporter: Organization/alphora
             care_gaps_composition_section_author: Organization/alphora-author
          threaded_care_gaps_enabled: true
+         measure_evaluation:
+            validation_enabled: true
+            validation_profiles:
+               cqf_measures_3_0_0:
+                  name: hl7.fhir.us.cqfmeasures
+                  ignoreKeys: exc-1, exc-2, exc-3, cmp-32, cmp-33, cmp-34, cmp-35
