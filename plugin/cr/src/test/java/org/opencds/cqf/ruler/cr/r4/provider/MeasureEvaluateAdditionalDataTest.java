@@ -85,4 +85,32 @@ class MeasureEvaluateAdditionalDataTest extends RestIntegrationTest {
 
 		assertNotNull(returnMeasureReport);
 	}
+
+	@Test
+	void testClientMeasureEvaluateWithAdditionalData() {
+
+		String mainBundleAsText = stringFromResource("ClientLanContent.json");
+		Bundle bundle = (Bundle) getFhirContext().newJsonParser().parseResource(mainBundleAsText);
+		getClient().transaction().withBundle(bundle).execute();
+
+		String additionalBundleAsText = stringFromResource("ClientLanAdditionalData.json");
+		Bundle additionalData = (Bundle) getFhirContext().newJsonParser().parseResource(additionalBundleAsText);
+
+		Parameters params = parameters(
+			stringPart("periodStart", "2023-01-01T00:00:00.000Z"),
+			stringPart("periodEnd", "2023-01-31T23:59:59.000Z"),
+			stringPart("subject", "Patient/eNeMVHWfNoTsMTbrwWQQ30A3"),
+			part("additionalData", additionalData));
+
+		MeasureReport returnMeasureReport = getClient().operation()
+			.onInstance(new IdType("Measure", "NHSNdQMAcuteCareHospitalInitialPopulation"))
+			.named("$evaluate-measure")
+			.withParameters(params)
+			.returnResourceType(MeasureReport.class)
+			.execute();
+
+		System.out.println(getFhirContext().newJsonParser().setPrettyPrint(true).encodeResourceToString(returnMeasureReport));
+
+		assertNotNull(returnMeasureReport);
+	}
 }
