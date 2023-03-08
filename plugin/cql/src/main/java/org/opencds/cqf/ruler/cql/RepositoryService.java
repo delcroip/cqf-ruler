@@ -6,6 +6,7 @@ import org.cqframework.fhir.api.FhirDal;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.instance.model.api.IPrimitiveType;
+import org.hl7.fhir.r4.model.CodeType;
 import org.hl7.fhir.r4.model.ContactDetail;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Library;
@@ -70,11 +71,10 @@ public class RepositoryService extends DaoRegistryOperationProvider {
 
 	@Operation(name = "$draft", idempotent = true, global = true, type = MetadataResource.class)
 	@Description(shortDefinition = "$draft", value = "Create a new draft version of the reference artifact")
-	public Library draftOperation(RequestDetails requestDetails, @IdParam IdType theId)
+	public Library draftOperation(RequestDetails requestDetails, @IdParam IdType theId, @OperationParam(name = "version") String version)
 		throws FHIRException {
-
 		FhirDal fhirDal = this.fhirDalFactory.create(requestDetails);
-		return (Library) this.artifactProcessor.draft(theId, fhirDal);
+		return (Library) this.artifactProcessor.draft(theId, fhirDal, version);
 	}
 
 	@Operation(name = "$release", idempotent = true, global = true, type = MetadataResource.class)
@@ -82,12 +82,12 @@ public class RepositoryService extends DaoRegistryOperationProvider {
 	public Library releaseOperation(RequestDetails requestDetails,
 											  @IdParam IdType theId,
 											  @OperationParam(name = "version") String version,
-											  @OperationParam(name = "latestFromTxServer", typeName = "boolean") IPrimitiveType<Boolean> latestFromTxServer)
+											  @OperationParam(name = "versionBehavior") CodeType versionBehavior,
+											  @OperationParam(name = "latestFromTxServer", typeName = "Boolean") IPrimitiveType<Boolean> latestFromTxServer)
 		throws FHIRException {
 
 		FhirDal fhirDal = this.fhirDalFactory.create(requestDetails);
-		return (Library) this.artifactProcessor.release2(theId, version,
-			latestFromTxServer== null || latestFromTxServer.getValue(), fhirDal);
+		return (Library) this.artifactProcessor.releaseVersion(theId, version, versionBehavior, latestFromTxServer != null && latestFromTxServer.getValue(), fhirDal);
 	}
 
 //	@Operation(name = "$release", idempotent = true, global = true, type = MetadataResource.class)
@@ -95,7 +95,7 @@ public class RepositoryService extends DaoRegistryOperationProvider {
 //	public Library releaseOperation(RequestDetails requestDetails, @IdParam IdType theId)
 //		throws FHIRException {
 //		FhirDal fhirDal = this.fhirDalFactory.create(requestDetails);
-//		return (Library) this.artifactProcessor.releaseVersion(theId, fhirDal);
+//		return (Library) this.artifactProcessor.releaseVersionOld(theId, fhirDal);
 //	}
 
 	@Operation(name = "$revise", idempotent = true, global = true, type = MetadataResource.class)

@@ -4,8 +4,11 @@ package org.opencds.cqf.ruler.cql;
 import static graphql.Assert.assertNotNull;
 //import static graphql.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.opencds.cqf.cql.evaluator.fhir.util.r4.Parameters.booleanPart;
+import static org.opencds.cqf.cql.evaluator.fhir.util.r4.Parameters.codePart;
 import static org.opencds.cqf.cql.evaluator.fhir.util.r4.Parameters.parameters;
 import static org.opencds.cqf.cql.evaluator.fhir.util.r4.Parameters.part;
+import static org.opencds.cqf.cql.evaluator.fhir.util.r4.Parameters.stringPart;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,28 +28,28 @@ import org.hl7.fhir.r4.model.Resource;
 import org.hl7.fhir.r4.model.UriType;
 //import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-//import org.junit.jupiter.api.TestMethodOrder;
 import org.opencds.cqf.cql.evaluator.fhir.util.Canonicals;
 import org.opencds.cqf.ruler.cql.r4.ArtifactCommentExtension;
 import org.opencds.cqf.ruler.test.RestIntegrationTest;
 import org.springframework.boot.test.context.SpringBootTest;
-//import org.springframework.core.annotation.Order;
 
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 	classes = {RepositoryServiceTest.class, CqlConfig.class},
 	properties = {"hapi.fhir.fhir_version=r4", "hapi.fhir.security.basic_auth.enabled=false"})
-//@TestMethodOrder(MethodOrderer.MethodName.class)
+
 class RepositoryServiceTest extends RestIntegrationTest {
 
 	@Test
 	void draftOperation_active_test() {
 		loadTransaction("ersd-active-transaction-bundle-example.json");
 
+		Parameters params = parameters(part("version", "1.1.1") );
 		Resource returnResource = getClient().operation()
 			.onInstance("Library/SpecificationLibrary")
 			.named("$draft")
-			.withNoParameters(Parameters.class)
+			.withParameters(params)
 			.returnResourceType(Library.class)
 			.execute();
 
@@ -59,45 +62,88 @@ class RepositoryServiceTest extends RestIntegrationTest {
 		assertTrue(Canonicals.getVersion(relatedArtifacts.get(1).getResource()) == null);
 	}
 
-	@Test
-	void draftOperation_draft_test() {
-		loadTransaction("ersd-draft-transaction-bundle-example.json");
+	//@Test
+	//void releaseResource_test() {
+	//	loadTransaction("ersd-draft-transaction-bundle-example.json");
+	//	Library returnResource = getClient().operation()
+	//		.onInstance("Library/DraftSpecificationLibrary")
+	//		.named("$release")
+	//		.withNoParameters(Parameters.class)
+	//		.useHttpGet()
+	//		.returnResourceType(Library.class)
+	//		.execute();
 
-		String actualMessage = "";
+	@Test
+	void releaseResource_test() {
+		loadTransaction("ersd-release-bundle.json");
+		String versionData = "1234";
+
+		Parameters params1 = parameters(
+			stringPart("version", "1234"),
+			codePart("versionBehavior", "default")
+		);
+
+		Library returnResource = getClient().operation()
+			.onInstance("Library/ReleaseSpecificationLibrary")
+			.named("$release")
+			.withParameters(params1)
+			.useHttpGet()
+			.returnResourceType(Library.class)
+			.execute();
+
+		assertNotNull(returnResource);
+	}
+
+	@Test
+	void releaseResource_latestFromTx_NotSupported_test() {
+		loadTransaction("ersd-release-bundle.json");
+		String actualErrorMessage = "";
+
+		Parameters params1 = parameters(
+			stringPart("version", "1234"),
+			codePart("versionBehavior", "default"),
+			booleanPart("latestFromTxServer", true)
+		);
+
 		try {
-			Resource returnResource = getClient().operation()
-				.onInstance("Library/DraftSpecificationLibrary")
-				.named("$draft")
-				.withNoParameters(Parameters.class)
+			Library returnResource = getClient().operation()
+				.onInstance("Library/ReleaseSpecificationLibrary")
+				.named("$release")
+				.withParameters(params1)
+				.useHttpGet()
 				.returnResourceType(Library.class)
 				.execute();
 		} catch (Exception e) {
-			actualMessage = e.getMessage();
+			actualErrorMessage = e.getMessage();
+			assertTrue(actualErrorMessage.contains("Support for 'latestFromTxServer' is not yet implemented."));
 		}
-
-		assertTrue(actualMessage.contains("Drafts can only be created from artifacts with status of 'active'. Resource 'http://ersd.aimsplatform.org/fhir/Library/DraftSpecificationLibrary' has a status of: DRAFT"));
 	}
 
-//	@Test
-//	void releaseResource_test() {
-//		loadTransaction("ersd-draft-transaction-bundle-example.json");
-//		String versionData = "1234";
-//
-//		Parameters params1 = parameters(
-//			stringPart("version", "1234")//,
-////			booleanPart("latestFromTxServer", true)
-//		);
-//
-//		Library returnResource = getClient().operation()
-//			.onInstance("Library/DraftSpecificationLibrary")
-//			.named("$release")
-//			.withParameters(params1)
-//			.useHttpGet()
-//			.returnResourceType(Library.class)
-//			.execute();
-//
-//		assertNotNull(returnResource);
-//	}
+	@Test
+	void release_missing_approvalDate_validation_test() {
+		loadTransaction("ersd-release-missing-approvalDate-validation-bundle.json");
+		String versionData = "1234";
+		String actualErrorMessage = "";
+
+		Parameters params1 = parameters(
+			stringPart("version", "1234"),
+			codePart("versionBehavior", "default"),
+			booleanPart("latestFromTxServer", true)
+		);
+
+		try {
+			Library returnResource = getClient().operation()
+				.onInstance("Library/ReleaseSpecificationLibrary")
+				.named("$release")
+				.withParameters(params1)
+				.useHttpGet()
+				.returnResourceType(Library.class)
+				.execute();
+		} catch (Exception e) {
+			actualErrorMessage = e.getMessage();
+			assertTrue(actualErrorMessage.contains("The artifact must be approved (indicated by approvalDate) before it is eligible for release."));
+		}
+	}
 
 	@Test
 	void reviseOperation_active_test() {
@@ -141,50 +187,6 @@ class RepositoryServiceTest extends RestIntegrationTest {
 		assertTrue(returnResource != null);
 		assertTrue(returnResource.getName().equals(newResourceName));
 	}
-
-	// @Test
-	// void packageOperation_no_id_test() {
-	// 	loadTransaction("ersd-active-transaction-bundle-example.json");
-	// 	Bundle specLibrary = (Bundle) readResource("ersd-active-transaction-bundle-example.json");
-	// 	specLibrary.setId("");
-	// 	String actualMessage = "";
-	// 	IBaseBundle returnBundle = null;
-	// 	try {
-	// 		returnBundle = getClient().operation()
-	// 			.onInstance("Library/SpecificationLibrary")
-	// 			.named("$package")
-	// 			.withNoParameters(Parameters.class)
-	// 			.returnResourceType(Bundle.class)
-	// 			.execute();
-	// 	} catch ( Exception e) {
-	// 		actualMessage = e.getMessage();
-	// 		assertTrue(actualMessage.contains("The resource must have a valid id to be packaged."));
-	// 	}
-
-	// 	assertNotNull(returnBundle);
-	// }
-
-	// @Test
-	// void packageOperation_id_test() {
-	// 	loadTransaction("ersd-active-transaction-bundle-example.json");
-	// 	Bundle specLibrary = (Bundle) readResource("ersd-active-transaction-bundle-example.json");
-	// 	specLibrary.setId("NewSpecificationLibrary");
-	// 	String actualMessage = "";
-	// 	IBaseBundle returnBundle = null;
-	// 	try {
-	// 		returnBundle = getClient().operation()
-	// 			.onInstance("Library/SpecificationLibrary")
-	// 			.named("$package")
-	// 			.withNoParameters(Parameters.class)
-	// 			.returnResourceType(Bundle.class)
-	// 			.execute();
-	// 	} catch ( Exception e) {
-	// 		actualMessage = e.getMessage();
-	// 		assertTrue(actualMessage.contains("The resource must have a valid id to be packaged."));
-	// 	}
-
-	// 	assertNotNull(returnBundle);
-	// }
 
 	@Test
 	void approveOperation_twice_appends_artifactComment_test() {
